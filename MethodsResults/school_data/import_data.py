@@ -11,6 +11,24 @@ RETENTION = "retention_rates.xls"
 STDNT_RACE = "demo_stdnt_race_2018.xls"
 STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
 
+def get_staff_dict():
+	"""
+	This function produces a dictionary of total teacher count
+	per school. Key (school name), Value (count)
+
+	Input: None
+	Output:
+		- staff_dict: a python dictionary
+	"""
+	teacher_df = import_teachers(TEACHERS)
+	staff_df = teacher_df.groupby('school').sum()
+	staff_df.drop(['school_id'], inplace=True, axis=1)
+	staff_dict = staff_df.to_dict()
+	staff_dict = staff_dict['count']
+
+	return staff_dict
+
+
 def import_teachers(filename):
 	"""
 	This function takes an excel file of teacher salaries and 
@@ -21,11 +39,29 @@ def import_teachers(filename):
 	Output:
 		- df: a pandas dataframe with school and teacher name cols
 	"""
+	# import, clean, & format dataframe
 	df = pd.read_excel(filename, sheetname='Export Worksheet', 
-		usecols=[0,2,10])
+		usecols=[0,1,2,9,10])
 	df.set_index('Pos #', inplace=True)
-	df = df.rename(index=int, columns={'Department': 'school', 'Name': 'teacher'})
+	df = df.rename(index=int, columns={'Dept ID': 'school_id','Department': 'school', 
+		'Job Title': 'job_title', 'Name': 'teacher'})
 	df.index.names = ['ID']
+
+	# filter out non-teacher & non-instructor positions
+	l = list(df.job_title.unique())
+	teach_list = [s for s in l if "Teacher" in s]
+	instructor_list = [s for s in l if "Instructor" in s]
+	counselor_list = [s for s in l if "Counselor" in s]
+	all_list = teach_list + instructor_list + counselor_list
+	df = df[df['job_title'].isin(all_list)]
+	
+	# filter out specific positions
+	df = df[df.job_title != 'Teacher Compliance Analyst']
+	df = df[df.job_title != 'Guidance Counselor Assistant']
+
+	# create column of 1's to count teachers per school
+	df['count'] = 1
+	df.dropna(axis=0, how='any', inplace=True)
 	
 	return df
 
@@ -39,6 +75,7 @@ def import_retention(filename):
 	Output:
 		- df: a pandas dataframe
 	"""
+	# import, clean, & format dataframe
 	df = pd.read_excel(filename, skiprows=1, sheetname="CollegeEnrollPersist_2017_sch")
 	df.set_index('School ID', inplace=True)
 	df = df.rename(index=int, columns={'School Name': 'school', 'Status as of 2017': 'status',
@@ -58,7 +95,53 @@ def import_retention(filename):
 	df.index.names = ['ID']
 
 	# drop a row if the school has "Closed" status
-	df[df.status != "Closed"]
+	df = df[df.status != "Closed"]
+	
+	# # drop irrelevant columns
+	df.drop(['status', '16_grads', '16_en', '16_enp', '15_grads', '15_en',
+       '15_pers', '14_grads', '14_en', '14_pers', '13_grads', '13_en', 
+       '13_pers', '12_grads', '12_en', '12_pers', '11_grads', '11_en', 
+       '11_pers', '10_grads', '10_en', '10_pers'], axis=1, inplace=True)
+
+	# replace '*' and NaNs with -1.0
+	df.replace(to_replace='*', value= -1.0, inplace=True)
+	df.fillna(value = -1.0, inplace=True)
+
+	# create empty_count column
+	df['empty_count'] = 0.0
+
+	# get missing cell counts for each row and push into empty_count col
+	l = []
+	for row in df.iterrows():
+		counter = 0
+		for i in row[1][1:]:
+			if i == -1.0:
+				counter += 1
+		l.append(counter)
+	se = pd.Series(l)
+	df['empty_count'] = se.values
+
+	# keep schools that had 4 or fewer missing cells (184 -> 104)
+	df = df[df['empty_count'] <= 4]
+
+	# calculate the mean enrollment and persistence rates
+	df.replace(-1.0, np.nan, inplace=True)
+	df['enroll_avg'] = df[['15_enp', '14_enp', '13_enp', '12_enp','11_enp', '10_enp']].mean(axis=1)
+	df['persis_avg'] = df[['15_pers_p', '14_pers_p', '13_pers_p', '12_pers_p', '11_pers_p', '10_pers_p']].mean(axis=1)
+
+	# impute the missing enrollment & persistence rates 
+	df['15_enp'].fillna(df['enroll_avg'], inplace=True)
+	df['14_enp'].fillna(df['enroll_avg'], inplace=True)
+	df['13_enp'].fillna(df['enroll_avg'], inplace=True)	
+	df['12_enp'].fillna(df['enroll_avg'], inplace=True)
+	df['11_enp'].fillna(df['enroll_avg'], inplace=True)
+	df['10_enp'].fillna(df['enroll_avg'], inplace=True)
+	df['15_pers_p'].fillna(df['persis_avg'], inplace=True)
+	df['14_pers_p'].fillna(df['persis_avg'], inplace=True)
+	df['13_pers_p'].fillna(df['persis_avg'], inplace=True)
+	df['12_pers_p'].fillna(df['persis_avg'], inplace=True)
+	df['11_pers_p'].fillna(df['persis_avg'], inplace=True)
+	df['10_pers_p'].fillna(df['persis_avg'], inplace=True)
 	
 	return df
 
