@@ -6,7 +6,7 @@ import numpy as np
 from pandas import ExcelWriter
 from pandas import ExcelFile
 import re
-from ethnicolr import census_ln, pred_fl_reg_ln, pred_fl_reg_name
+from ethnicolr import census_ln, pred_census_ln, pred_wiki_name
 
 TEACHERS = "teacher_positions_12312017.xls"
 RETENTION = "retention_rates.xls"
@@ -15,8 +15,20 @@ STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
 
 def impute_names():
 	"""
+	This function utilizes the ethnicolr package to predict the race
+	of teachers based on their name. It will append probabilities of
+	each race to the dataframe and assign a "final race" to be used
+	in the modeling process based on the greatest probability.
+
+	Input: None
+	Output:
+		- df: a pandas dataframe
 	"""
+	teacher_df = import_teachers(TEACHERS)
 	
+
+	return teacher_df
+
 def get_staff_dict():
 	"""
 	This function produces a dictionary of total teacher count
