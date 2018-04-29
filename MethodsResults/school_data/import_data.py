@@ -22,31 +22,52 @@ def impute_names():
 
 	Input: None
 	Output:
-		- df: a pandas dataframe
+		- results: a dictionary with 
 	"""
-	teacher_df = import_teachers(TEACHERS)
+	results = {}
+	subset_df = make_teacher_subset()
 
-	# use census_ln function
-	census_df=census_ln(teachers, "teacher_last", 2010)
+	# run census_ln function
+	# census_last = run_census_last(subset_df, 2010)
+	# run pred_census_ln function
+	pred_census_last = run_pred_census_ln(subset_df, 2010)
+	# run pred_wiki_ln function
+	pred_wiki_last = run_pred_wiki_ln(subset_df)
+	# run pred_wiki_name function
+	pred_wiki_full = run_pred_wiki_name(subset_df)
+	# run pred_fl_reg_name function
+	pred_fl_full = run_pred_fl_name(subset_df)
 
-	return teacher_df
+	df = import_teachers(TEACHERS)
+	df['census_lastname'] = pred_census_last
+	df['wiki_lastname'] = pred_wiki_last
+	df['wiki_fullname'] = pred_wiki_full
+	df['fl_fullname'] = pred_fl_full
 
-def run_census_last (subset_df, census_year):
-    """
-    This function runs the Census Ln Function.
-    """
-    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+	return df
+
+# def run_census_last (subset_df, census_year):
+#     """
+#     This function runs the Census Ln Function.
+#     """
+#     has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
     
-    return census_ln(has_last_name_df, 'teacher_last', census_year)
+#     return census_ln(has_last_name_df, 'teacher_last', census_year)
 
 
 def run_pred_census_ln (subset_df, census_year):
     """
     This function runs the Pred Census Ln Function.
     """
-    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy() 
+    df = pred_census_ln(has_last_name_df, 'teacher_last', census_year)
     
-    return pred_census_ln(has_last_name_df, 'teacher_last', census_year)
+    # keep only the race column
+    cols_to_keep = ['race']
+    df = df[cols_to_keep]
+    df.rename(columns={'race':'census_lastname'}, inplace=True)
+
+    return df
 
 
 def run_pred_wiki_ln (subset_df):
@@ -54,18 +75,66 @@ def run_pred_wiki_ln (subset_df):
     This function runs the Pred Wiki Ln Function.
     """
     has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    df = pred_wiki_ln(has_last_name_df, 'teacher_last')
     
-    return pred_wiki_ln(has_last_name_df, 'teacher_last')
+    # generalize the race categories
+    recode_dict = {'GreaterEuropean,British': 'white',
+    'GreaterEuropean,WestEuropean,Italian': 'white',
+    'Asian,GreaterEastAsian,Japanese': 'asian', 
+    'GreaterEuropean,Jewish':'white',
+    'GreaterEuropean,EastEuropean': 'white',
+    'GreaterEuropean,WestEuropean,Hispanic': 'hispanic', 
+    'GreaterAfrican,Africans':'black',
+    'GreaterEuropean,WestEuropean,Germanic': 'white',
+    'GreaterEuropean,WestEuropean,Nordic': 'white', 
+    'Asian,IndianSubContinent': 'white',
+    'GreaterAfrican,Muslim': 'black', 
+    'GreaterEuropean,WestEuropean,French':'white',
+    'Asian,GreaterEastAsian,EastAsian':'asian'}
+
+    # replace values using generalized race categories
+    df.replace(to_replace=recode_dict, value=None, inplace=True)
+
+    # keep only the race colummn
+    cols_to_keep = ['race']
+    df = df[cols_to_keep]
+    df.rename(columns={'race':'wiki_lastname'}, inplace=True)
+
+    return df
 
 
 def run_pred_wiki_name (subset_df):
-	"""
+    """
     This function runs the Pred Wiki Name Function.
     """
-	has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
-	also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
+    df = pred_wiki_name(also_has_first_name_df, 'teacher_first', 'teacher_last')
+    
+    # generalize the race categories
+    recode_dict = {'GreaterEuropean,British': 'white',
+    'GreaterEuropean,WestEuropean,Italian': 'white',
+    'Asian,GreaterEastAsian,Japanese': 'asian', 
+    'GreaterEuropean,Jewish':'white',
+    'GreaterEuropean,EastEuropean': 'white',
+    'GreaterEuropean,WestEuropean,Hispanic': 'hispanic', 
+    'GreaterAfrican,Africans':'black',
+    'GreaterEuropean,WestEuropean,Germanic': 'white',
+    'GreaterEuropean,WestEuropean,Nordic': 'white', 
+    'Asian,IndianSubContinent': 'white',
+    'GreaterAfrican,Muslim': 'black', 
+    'GreaterEuropean,WestEuropean,French':'white',
+    'Asian,GreaterEastAsian,EastAsian':'asian'}
 
-	return pred_wiki_name(also_has_first_name_df, 'teacher_first', 'teacher_last')
+    # replace values using generalized race categories
+    df.replace(to_replace=recode_dict, value=None, inplace=True)
+    
+    # keep only the race colummn
+    cols_to_keep = ['race']
+    df = df[cols_to_keep]
+    df.rename(columns={'race':'wiki_fullname'}, inplace=True)
+
+    return df
 
 
 def run_pred_fl_name (subset_df):
@@ -74,8 +143,20 @@ def run_pred_fl_name (subset_df):
     """
 	has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
 	also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
+	df = pred_fl_reg_name(also_has_first_name_df, 'teacher_first', 'teacher_last')
 
-	return pred_fl_reg_name(also_has_first_name_df, 'teacher_first', 'teacher_last')
+	#recode two race categories
+	recode_dict = {'nh_white': 'white', 'nh_black': 'black'}
+	
+	# replace values using generalized race categories
+	df.replace(to_replace=recode_dict, value=None, inplace=True)
+	
+	# keep only the race column
+	cols_to_keep = ['race']
+	df = df[cols_to_keep]
+	df.rename(columns={'race':'fl_fullname'}, inplace=True)   
+	
+	return df
 
 
 def make_teacher_subset():
@@ -141,8 +222,8 @@ def import_teachers(filename):
 	df = pd.read_excel(filename, sheetname='Export Worksheet', 
 		usecols=[0,1,2,9,10])
 	df.set_index('Pos #', inplace=True)
-	df = df.rename(index=int, columns={'Dept ID': 'school_id','Department': 'school', 
-		'Job Title': 'job_title', 'Name': 'teacher'})
+	df.rename(index=int, columns={'Dept ID': 'school_id','Department': 'school', 
+		'Job Title': 'job_title', 'Name': 'teacher'}, inplace=True)
 	df.index.names = ['ID']
 
 	# filter out non-teacher & non-instructor positions
@@ -181,7 +262,7 @@ def import_retention(filename):
 	# import, clean, & format dataframe
 	df = pd.read_excel(filename, skiprows=1, sheetname="CollegeEnrollPersist_2017_sch")
 	df.set_index('School ID', inplace=True)
-	df = df.rename(index=int, columns={'School Name': 'school', 'Status as of 2017': 'status',
+	df.rename(index=int, columns={'School Name': 'school', 'Status as of 2017': 'status',
 		'Graduates': '16_grads', 'Enrollments': '16_en', 'Enrollment Pct': '16_enp', 
 		'Graduates.1': '15_grads', 'Enrollments.1': '15_en', 'Enrollment Pct.1': '15_enp', 
 		'# of Enrollments Persisting': '15_pers', 'Persistence Pct': '15_pers_p', 
@@ -194,7 +275,7 @@ def import_retention(filename):
 		'Graduates.5': '11_grads', 'Enrollments.5': '11_en', 'Enrollment Pct.5': '11_enp', 
 		'# of Enrollments Persisting.4': '11_pers', 'Persistence Pct.4': '11_pers_p', 
 		'Graduates.6': '10_grads', 'Enrollments.6': '10_en', 'Enrollment Pct.6': '10_enp', 
-		'# of Enrollments Persisting.5': '10_pers', 'Persistence Pct.5': '10_pers_p',})
+		'# of Enrollments Persisting.5': '10_pers', 'Persistence Pct.5': '10_pers_p'}, inplace=True)
 	df.index.names = ['ID']
 
 	# drop a row if the school has "Closed" status
@@ -264,8 +345,8 @@ def import_student_sped_ell(filename):
 		usecols=[1,2,4,5,6,7,8,9])
 	df.drop([0,661,662,663], inplace=True)
 	df.set_index('School ID', inplace=True)
-	df = df.rename(index=int, columns={'School Name': 'school', 'N': 'ell_n', '%': 'ell_p',
-		'N.1': 'sped_n', '%.1': 'sped_p', 'N.2': 'lunch_n', '%.2': 'lunch_p'})
+	df.rename(index=int, columns={'School Name': 'school', 'N': 'ell_n', '%': 'ell_p',
+		'N.1': 'sped_n', '%.1': 'sped_p', 'N.2': 'lunch_n', '%.2': 'lunch_p'}, inplace=True)
 	df.index.names = ['ID']
 	
 	# drop the rows where any of the elements are nan
@@ -288,9 +369,9 @@ def import_student_race(filename):
 		usecols=[0,1,5,7,11,13,15,17,19,21])
 	df.drop([0], inplace=True)
 	df.set_index('School ID', inplace=True)
-	df = df.rename(index=int, columns={'School Name': 'school', 'Pct': 'white', 'Pct.1': 'black',
+	df.rename(index=int, columns={'School Name': 'school', 'Pct': 'white', 'Pct.1': 'black',
 		'Pct.3': 'nat_am_alsk', 'Pct.4': 'hispanic', 'Pct.5': 'multi', 'Pct.6': 'asian',
-		'Pct.7': 'hi_pi', 'Pct.8': 'unknown'})
+		'Pct.7': 'hi_pi', 'Pct.8': 'unknown'}, inplace=True)
 	df.index.names = ['ID']
 
 	# drop the rows where any of the elements are nan
