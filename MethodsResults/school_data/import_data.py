@@ -1,12 +1,12 @@
 # Author: Kevin Sun
-# Date of last edit: Saturday, April 28, 2018
+# Date of last edit: Sunday, April 29, 2018
 
 import pandas as pd 
 import numpy as np 
 from pandas import ExcelWriter
 from pandas import ExcelFile
 import re
-from ethnicolr import census_ln, pred_census_ln, pred_wiki_name
+from ethnicolr import census_ln, pred_census_ln, pred_wiki_ln, pred_wiki_name, pred_fl_reg_name
 
 TEACHERS = "teacher_positions_12312017.xls"
 RETENTION = "retention_rates.xls"
@@ -25,9 +25,74 @@ def impute_names():
 		- df: a pandas dataframe
 	"""
 	teacher_df = import_teachers(TEACHERS)
-	
+
+	# use census_ln function
+	census_df=census_ln(teachers, "teacher_last", 2010)
 
 	return teacher_df
+
+def run_census_last (subset_df, census_year):
+    """
+    This function runs the Census Ln Function.
+    """
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    
+    return census_ln(has_last_name_df, 'teacher_last', census_year)
+
+
+def run_pred_census_ln (subset_df, census_year):
+    """
+    This function runs the Pred Census Ln Function.
+    """
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    
+    return pred_census_ln(has_last_name_df, 'teacher_last', census_year)
+
+
+def run_pred_wiki_ln (subset_df):
+    """
+    This function runs the Pred Wiki Ln Function.
+    """
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    
+    return pred_wiki_ln(has_last_name_df, 'teacher_last')
+
+
+def run_pred_wiki_name (subset_df):
+	"""
+    This function runs the Pred Wiki Name Function.
+    """
+	has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+	also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
+
+	return pred_wiki_name(also_has_first_name_df, 'teacher_first', 'teacher_last')
+
+
+def run_pred_fl_name (subset_df):
+	"""
+    This function runs the Pred Fl Reg Name Function.
+    """
+	has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+	also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
+
+	return pred_fl_reg_name(also_has_first_name_df, 'teacher_first', 'teacher_last')
+
+
+def make_teacher_subset():
+	"""
+	This function takes the imported teacher dataframe and keeps only the
+	relevant columns needed for imputing teacher race based on name.
+
+	Output:
+		- df_subset: a pandas dataframe
+	"""
+	df = import_teachers(TEACHERS)
+	cols_to_keep = ['school_id', 'school', 'count', 'teacher_first', 'teacher_last']
+
+	subset_df = df[cols_to_keep]
+
+	return subset_df
+
 
 def get_staff_dict():
 	"""
