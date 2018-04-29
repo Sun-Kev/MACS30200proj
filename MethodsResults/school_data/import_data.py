@@ -1,16 +1,22 @@
 # Author: Kevin Sun
-# Date of last edit: Wednesday, April 25, 2018
+# Date of last edit: Saturday, April 28, 2018
 
 import pandas as pd 
 import numpy as np 
 from pandas import ExcelWriter
 from pandas import ExcelFile
+import re
+from ethnicolr import census_ln, pred_fl_reg_ln, pred_fl_reg_name
 
 TEACHERS = "teacher_positions_12312017.xls"
 RETENTION = "retention_rates.xls"
 STDNT_RACE = "demo_stdnt_race_2018.xls"
 STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
 
+def impute_names():
+	"""
+	"""
+	
 def get_staff_dict():
 	"""
 	This function produces a dictionary of total teacher count
@@ -28,6 +34,21 @@ def get_staff_dict():
 
 	return staff_dict
 
+def get_last_name(name):
+	"""
+	This is a helper function that gets the last name of the teacher
+	"""
+	last_name = re.findall(r"[\w']+", name)[0]
+	
+	return last_name
+
+def get_first_name(name):
+	"""
+	This is a helper function that gets the first name of the teahcer
+	"""
+	first_name = re.findall(r"[\w']+", name)[1]
+	
+	return first_name
 
 def import_teachers(filename):
 	"""
@@ -63,7 +84,12 @@ def import_teachers(filename):
 	df['count'] = 1
 	df.dropna(axis=0, how='any', inplace=True)
 	
+	# split each name into two different columns
+	df['teacher_first'] = df.teacher.apply(get_first_name)
+	df['teacher_last'] = df.teacher.apply(get_last_name)
+	
 	return df
+
 
 def import_retention(filename):
 	"""
@@ -142,7 +168,7 @@ def import_retention(filename):
 	df['12_pers_p'].fillna(df['persis_avg'], inplace=True)
 	df['11_pers_p'].fillna(df['persis_avg'], inplace=True)
 	df['10_pers_p'].fillna(df['persis_avg'], inplace=True)
-	
+
 	return df
 
 
