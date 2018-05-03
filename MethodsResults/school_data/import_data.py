@@ -7,23 +7,50 @@ from pandas import ExcelWriter
 from pandas import ExcelFile
 import re
 from ethnicolr import census_ln, pred_census_ln, pred_wiki_ln, pred_wiki_name, pred_fl_reg_name
+import recordlinkage as rl
 
 TEACHERS = "teacher_positions_12312017.xls"
 RETENTION = "retention_rates.xls"
 STDNT_RACE = "demo_stdnt_race_2018.xls"
 STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
 
-def impute_final_race_estimate():
+def obtain_critical_mass_var():
+	"""
+	This function will calculate the "critical mass" variable for each
+	school. The critical mass variable is the proportion of non-white 
+	teachers to white teachers at the school.
+
+	Input: None
+	Output: 
+		- df: a dataframe that include school name and critical mass 
+		as a column
+	"""
+	df = final_race_impute()
+	d = {}
+	# get counts for non-white & white respectively from grouping
+	for school, group in df.groupby('school'):
+		total_staff = len(group.pred_race)
+		nw_count = 0
+		for race in group.pred_race:
+			if race == 'non_white':
+				nw_count += 1
+		critical_mass = nw_count/total_staff
+		if school not in d:
+			d['school'] = critical_mass
+
+	return d
+
+
+def final_race_impute():
 	"""
 	This function uses an ensemble method to determine a final race
-	estimate from the four methods (census_last, wiki_last, wiki_full,
-	fl_full).
+	estimate from three methods (census_last, wiki_last, fl_full).
 
 	Input: None
 	Output:
-
+		- df: dataframe with school_id, school, and pred_race of each teacher
 	"""
-	df = impute_names_all_methods()
+	df = initial_race_impute()
 
 	white_list = []
 
@@ -55,10 +82,14 @@ def impute_final_race_estimate():
 	# push white_list into dataframe
 	df = pd.concat([df, df_white], axis=1)
 
+	# keep only school_id, school, count, pred_race cols
+	cols_to_keep = ['school_id', 'school', 'pred_race']
+	df = df[cols_to_keep]
+
 	return df
 
 
-def impute_names_all_methods():
+def initial_race_impute():
 	"""
 	This function utilizes the ethnicolr package to predict the race
 	of teachers based on their name. It will append probabilities of
@@ -94,6 +125,7 @@ def impute_names_all_methods():
 	#df = census_ln(df, 'teacher_last', 2010)
 
 	return df
+
 
 def run_census_last (subset_df, census_year):
     """
