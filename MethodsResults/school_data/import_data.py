@@ -38,12 +38,19 @@ def impute_final_race_estimate():
 		# 	count_white += 1
 		if t.fl_fullname == "white":
 			count_white += 1
-		#if count_white >= 3:
+		if count_white >= 2:
+			race = "white"
+		else:
+			race = "non-white"
 
-		#white_list.append(count_white)
+		white_list.append(race)
 
 	# turn list into series
-	#df_white = pd.DataFrame(white_list, columns=['white_count'])
+	df_white = pd.DataFrame(white_list, columns=['pred_race'])
+
+	# reset indices to prepare for concatenation
+	df.reset_index(drop=True, inplace=True)
+	df_white.reset_index(drop=True, inplace=True) 
 
 	# push white_list into dataframe
 	df = pd.concat([df, df_white], axis=1)
@@ -67,22 +74,24 @@ def impute_names_all_methods():
 	subset_df = make_teacher_subset()
 
 	# run census_ln function
-	census_last = run_census_last(subset_df, 2010)
+	# census_last = run_census_last(subset_df, 2010)
 	# run pred_census_ln function
 	pred_census_last = run_pred_census_ln(subset_df, 2010)
 	# run pred_wiki_ln function
 	pred_wiki_last = run_pred_wiki_ln(subset_df)
 	# run pred_wiki_name function
-	pred_wiki_full = run_pred_wiki_name(subset_df)
+	#pred_wiki_full = run_pred_wiki_name(subset_df)
 	# run pred_fl_reg_name function
 	pred_fl_full = run_pred_fl_name(subset_df)
 
 	df = import_teachers(TEACHERS)
-	df['census_proportion'] = census_last
+	# df['census_proportion'] = census_last
 	df['census_lastname'] = pred_census_last
 	df['wiki_lastname'] = pred_wiki_last
-	df['wiki_fullname'] = pred_wiki_full
+	#df['wiki_fullname'] = pred_wiki_full
 	df['fl_fullname'] = pred_fl_full
+
+	#df = census_ln(df, 'teacher_last', 2010)
 
 	return df
 
@@ -99,15 +108,15 @@ def run_census_last (subset_df, census_year):
     	- df: a dataframe with proportion that the last name was "white"
     	during the 2010 Census
     """
-    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy() 
     df = census_ln(has_last_name_df, 'teacher_last', census_year)
 
-    # keep the relevant columns
-    cols_to_keep = ['pctwhite']
-    df = df[cols_to_keep]
+    # # keep the relevant columns
+    # cols_to_keep = ['pctwhite']
+    # df = df[cols_to_keep]
 
-    # fill NaNs w/ 50%
-    df.fillna(value=float(50), axis=1, inplace=True)
+    # # fill NaNs w/ 50%
+    # df.fillna(value=float(50), axis=1, inplace=True)
 
     return df
 
