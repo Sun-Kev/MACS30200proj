@@ -1,5 +1,5 @@
 # Author: Kevin Sun
-# Date of last edit: Wednesday, May 2, 2018
+# Date of last edit: Thusdauy, May 3, 2018
 
 import pandas as pd 
 import numpy as np 
@@ -30,20 +30,23 @@ def impute_final_race_estimate():
 	# iterate through dataframe and get initial race pred. counts
 	for t in df.itertuples():
 		count_white = 0
-		count_not_white = 0
 		if t.census_lastname == "white":
 			count_white += 1
-		elif t.wiki_lastname == "white":
+		if t.wiki_lastname == "white":
 			count_white += 1
-		elif t.wiki_fullname == "white":
+		# if t.wiki_fullname == "white":
+		# 	count_white += 1
+		if t.fl_fullname == "white":
 			count_white += 1
-		elif t.fl_fullname == "white":
-			count_white += 1
+		#if count_white >= 3:
 
-		white_list.append(count_white)
+		#white_list.append(count_white)
+
+	# turn list into series
+	#df_white = pd.DataFrame(white_list, columns=['white_count'])
 
 	# push white_list into dataframe
-	df['white_count'] = 
+	df = pd.concat([df, df_white], axis=1)
 
 	return df
 
@@ -64,7 +67,7 @@ def impute_names_all_methods():
 	subset_df = make_teacher_subset()
 
 	# run census_ln function
-	# census_last = run_census_last(subset_df, 2010)
+	census_last = run_census_last(subset_df, 2010)
 	# run pred_census_ln function
 	pred_census_last = run_pred_census_ln(subset_df, 2010)
 	# run pred_wiki_ln function
@@ -75,6 +78,7 @@ def impute_names_all_methods():
 	pred_fl_full = run_pred_fl_name(subset_df)
 
 	df = import_teachers(TEACHERS)
+	df['census_proportion'] = census_last
 	df['census_lastname'] = pred_census_last
 	df['wiki_lastname'] = pred_wiki_last
 	df['wiki_fullname'] = pred_wiki_full
@@ -82,13 +86,30 @@ def impute_names_all_methods():
 
 	return df
 
-# def run_census_last (subset_df, census_year):
-#     """
-#     This function runs the Census Ln Function.
-#     """
-#     has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
-    
-#     return census_ln(has_last_name_df, 'teacher_last', census_year)
+def run_census_last (subset_df, census_year):
+    """
+    This function takes a dataframe of teacher information and 
+    runs the Census Ln Function. It provides the proportion of given
+    last name that was registered as someone who was "white" during 
+    the 2010 United States Census.
+
+    Input:
+    	- subset_df: a dataframe that is a subset of teacher information
+    Output:
+    	- df: a dataframe with proportion that the last name was "white"
+    	during the 2010 Census
+    """
+    has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
+    df = census_ln(has_last_name_df, 'teacher_last', census_year)
+
+    # keep the relevant columns
+    cols_to_keep = ['pctwhite']
+    df = df[cols_to_keep]
+
+    # fill NaNs w/ 50%
+    df.fillna(value=float(50), axis=1, inplace=True)
+
+    return df
 
 
 def run_pred_census_ln (subset_df, census_year):
