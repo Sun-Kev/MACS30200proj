@@ -22,23 +22,27 @@ def obtain_critical_mass_var():
 
 	Input: None
 	Output: 
-		- df: a dataframe that include school name and critical mass 
-		as a column
+		- df: a pandas dataframe with school and critical mass as
+		columns
 	"""
 	df = final_race_impute()
 	d = {}
+	
 	# get counts for non-white & white respectively from grouping
 	for school, group in df.groupby('school'):
 		total_staff = len(group.pred_race)
 		nw_count = 0
 		for race in group.pred_race:
-			if race == 'non_white':
+			if race == 'non-white':
 				nw_count += 1
-		critical_mass = nw_count/total_staff
-		if school not in d:
-			d['school'] = critical_mass
+		print(nw_count)
+		critical_mass = nw_count / total_staff
+		print(critical_mass)
+		d[school] = critical_mass  
 
-	return d
+	df = pd.DataFrame(list(d.items()), columns=['school', 'critical_mass'])
+
+	return df
 
 
 def final_race_impute():
