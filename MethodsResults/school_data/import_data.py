@@ -1,5 +1,5 @@
 # Author: Kevin Sun
-# Date of last edit: Sunday, April 29, 2018
+# Date of last edit: Wednesday, May 2, 2018
 
 import pandas as pd 
 import numpy as np 
@@ -13,7 +13,42 @@ RETENTION = "retention_rates.xls"
 STDNT_RACE = "demo_stdnt_race_2018.xls"
 STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
 
-def impute_names():
+def impute_final_race_estimate():
+	"""
+	This function uses an ensemble method to determine a final race
+	estimate from the four methods (census_last, wiki_last, wiki_full,
+	fl_full).
+
+	Input: None
+	Output:
+
+	"""
+	df = impute_names_all_methods()
+
+	white_list = []
+
+	# iterate through dataframe and get initial race pred. counts
+	for t in df.itertuples():
+		count_white = 0
+		count_not_white = 0
+		if t.census_lastname == "white":
+			count_white += 1
+		elif t.wiki_lastname == "white":
+			count_white += 1
+		elif t.wiki_fullname == "white":
+			count_white += 1
+		elif t.fl_fullname == "white":
+			count_white += 1
+
+		white_list.append(count_white)
+
+	# push white_list into dataframe
+	df['white_count'] = 
+
+	return df
+
+
+def impute_names_all_methods():
 	"""
 	This function utilizes the ethnicolr package to predict the race
 	of teachers based on their name. It will append probabilities of
@@ -22,7 +57,8 @@ def impute_names():
 
 	Input: None
 	Output:
-		- results: a dictionary with 
+		- df: a dataframe with four new columns attached that include 
+		predictions for that teacher's race
 	"""
 	results = {}
 	subset_df = make_teacher_subset()
@@ -57,11 +93,23 @@ def impute_names():
 
 def run_pred_census_ln (subset_df, census_year):
     """
-    This function runs the Pred Census Ln Function.
+    This function takes a dataframe of teacher information and 
+    runs the Pred Census Ln Function.
+
+    Input:
+    	- subset_df: a dataframe that is a subset of teacher information
+    Output:
+    	- df: a dataframe with a predicted race imputation 
     """
     has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy() 
     df = pred_census_ln(has_last_name_df, 'teacher_last', census_year)
     
+    #recode two race categories
+    recode_dict = {'api': 'asian'}
+
+    # replace values using generalized race categories
+    df.replace(to_replace=recode_dict, value=None, inplace=True)
+   
     # keep only the race column
     cols_to_keep = ['race']
     df = df[cols_to_keep]
@@ -72,7 +120,13 @@ def run_pred_census_ln (subset_df, census_year):
 
 def run_pred_wiki_ln (subset_df):
     """
-    This function runs the Pred Wiki Ln Function.
+    This function takes a dataframe of teacher information and
+    runs the Pred Wiki Ln Function.
+
+    Input:
+    	- subset_df: a dataframe that is a subset of teacher information
+    Output:
+    	- df: a dataframe with a predicted race imputation 
     """
     has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
     df = pred_wiki_ln(has_last_name_df, 'teacher_last')
@@ -105,7 +159,13 @@ def run_pred_wiki_ln (subset_df):
 
 def run_pred_wiki_name (subset_df):
     """
-    This function runs the Pred Wiki Name Function.
+    This function takes a dataframe of teacher information and
+    runs the Pred Wiki Name Function.
+
+    Input:
+    	- subset_df: a dataframe that is a subset of teacher information
+    Output:
+    	- df: a dataframe with a predicted race imputation 
     """
     has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
     also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
@@ -139,7 +199,13 @@ def run_pred_wiki_name (subset_df):
 
 def run_pred_fl_name (subset_df):
 	"""
-    This function runs the Pred Fl Reg Name Function.
+    This function takes a dataframe of teacher information
+    and runs the Pred Fl Reg Name Function.
+
+    Input:
+    	- subset_df: a dataframe that is a subset of teacher information
+    Output:
+    	- df: a dataframe with a predicted race imputation 
     """
 	has_last_name_df = subset_df[subset_df.teacher_last.notnull()].copy()
 	also_has_first_name_df = has_last_name_df[has_last_name_df.teacher_first.notnull()].copy()
@@ -229,11 +295,12 @@ def import_teachers(filename):
 	# filter out non-teacher & non-instructor positions
 	l = list(df.job_title.unique())
 	teach_list = [s for s in l if "Teacher" in s]
-	instructor_list = [s for s in l if "Instructor" in s]
-	counselor_list = [s for s in l if "Counselor" in s]
-	all_list = teach_list + instructor_list + counselor_list
-	df = df[df['job_title'].isin(all_list)]
-	
+	# instructor_list = [s for s in l if "Instructor" in s]
+	# counselor_list = [s for s in l if "Counselor" in s]
+	# all_list = teach_list + instructor_list + counselor_list
+	# df = df[df['job_title'].isin(all_list)]
+	df = df[df['job_title'].isin(teach_list)]
+
 	# filter out specific positions
 	df = df[df.job_title != 'Teacher Compliance Analyst']
 	df = df[df.job_title != 'Guidance Counselor Assistant']
