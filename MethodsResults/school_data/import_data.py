@@ -1,5 +1,5 @@
 # Author: Kevin Sun
-# Date of last edit: Thusdauy, May 3, 2018
+# Date of last edit: Saturday, May 5, 2018
 
 import pandas as pd 
 import numpy as np 
@@ -11,8 +11,71 @@ import recordlinkage as rl
 
 TEACHERS = "teacher_positions_12312017.xls"
 RETENTION = "retention_rates.xls"
+RETENTION_CLEAN = "retention_manual_cleaned.xlsx"
 STDNT_RACE = "demo_stdnt_race_2018.xls"
 STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
+
+def record_link_schools():
+	"""
+	This function performs record linkage on two dataframes: the critical
+	mass dataframe and the retention rates dataframe. The record linkage
+	is condicted on the name of the school. 
+
+	Input:
+	Output:
+	"""
+	critical_mass_df = obtain_critical_mass_var()
+	retention_df = import_cleaned_retention(RETENTION_CLEAN)
+
+	# set thresholds for comparing strings using qgram method
+	school_name_thresh = 0.85
+
+	# initialize a Record Linkage comparison object
+	compare = rl.Compare()
+	indexer = rl.FullIndex() # No blocking available
+	compare.string('school', 'school', method='qgram', 
+		threshold=school_name_thresh, label='school_name_score')
+
+	# make pairs
+	pairs = indexer.index(retention_df, critical_mass_df)
+
+	# compute record linkage scores
+	features = compare.compute(pairs, retention_df, critical_mass_df)
+	
+	# set classification threshold
+	school_name_classif_thresh = 1.0
+
+	# Classification & Final Filtering
+	best_matches = features[(features['school_name_score'] >= school_name_classif_thresh)]
+	
+	# obtain the index values from best_matches
+	index_array = best_matches.index.values	
+
+	# create tuple of indices and best matches df
+	link = (index_array, best_matches)
+
+	# loop through for information
+	for index_pair in index_array:
+		retention_index, cm_index = index_pair[0], index_pair[1]	
+	
+	return link
+
+
+def import_cleaned_retention(filename):
+	"""
+	This function takes an excel file of the already cleaned retention
+	rates, with school names that have been manually renamed and
+	imports it in preparation for record linkage.
+
+	Input:
+		- filename: a string name of the excel file
+	Output:
+		- df: a pandas dataframe
+	"""
+	df = pd.read_excel(filename)
+
+	return df
+
 
 def obtain_critical_mass_var():
 	"""
@@ -35,15 +98,27 @@ def obtain_critical_mass_var():
 		for race in group.pred_race:
 			if race == 'non-white':
 				nw_count += 1
-		print(nw_count)
 		critical_mass = nw_count / total_staff
-		print(critical_mass)
 		d[school] = critical_mass  
 
 	df = pd.DataFrame(list(d.items()), columns=['school', 'critical_mass'])
-
+	
+	# expand HS abbreciation
+	df['school'] = df['school'].apply(lambda s: s.replace('HS', 'High School'))
+	
 	return df
 
+
+def export_critical_mass_to_excel():
+	"""
+	This function writes the cleaned retention data to an excel file
+	for further manual editing of names.
+	"""
+	df = obtain_critical_mass_var()
+
+	writer = pd.ExcelWriter('critical_mass.xlsx')
+	df.to_excel(writer,'critical_mass_variable')
+	writer.save()
 
 def final_race_impute():
 	"""
@@ -460,8 +535,24 @@ def import_retention(filename):
 	df['11_pers_p'].fillna(df['persis_avg'], inplace=True)
 	df['10_pers_p'].fillna(df['persis_avg'], inplace=True)
 
+	# Expand HS abbreviation
+	df['school'] = df['school'].apply(lambda s: s.replace('HS', 'High School'))
+	
+	# Change the school column to title case
+	df['school'] = df['school'].str.title()
+	
 	return df
 
+def export_retention_to_excel():
+	"""
+	This function writes the cleaned retention data to an excel file
+	for further manual editing of names.
+	"""
+	df = import_retention(RETENTION)
+
+	writer = pd.ExcelWriter('retention_cleaned.xlsx')
+	df.to_excel(writer,'all_schools_retention')
+	writer.save()
 
 def import_student_sped_ell(filename):
 	"""
