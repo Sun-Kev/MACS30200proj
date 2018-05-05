@@ -12,8 +12,54 @@ import recordlinkage as rl
 TEACHERS = "teacher_positions_12312017.xls"
 RETENTION = "retention_rates.xls"
 RETENTION_CLEAN = "retention_manual_cleaned.xlsx"
-STDNT_RACE = "demo_stdnt_race_2018.xls"
-STDNT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
+STUDENT_RACE = "demo_stdnt_race_2018.xls"
+STUDENT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
+
+def build_final_dataset():
+	"""
+	"""
+	# import the data as relevant dfs
+	retention_df = import_cleaned_retention(RETENTION_CLEAN)
+	critical_mass_df = calculate_critical_mass_var()
+	student_race_df = import_student_race(STUDENT_RACE)
+	student_sped_ell_df = import_student_sped_ell(STUDENT_SPED_ELL_T1)
+
+	# merge the retention and critical mass dataframes
+	retention_cm_df = combine_retention_cm(retention_df, critical_mass_df)
+
+	# concat the retention_cm_df with control variable dataframes
+	final_dataset_df = pd.concat([retention_cm_df, student_race_df, student_sped_ell_df], axis=1, join='inner')
+
+	return final_dataset_df
+
+	
+def combine_retention_cm(retention_df, critical_mass_df):
+	"""
+
+	Input:
+		- retention_df: a pandas dataframe of manually cleaned
+		retention rates data
+		- critical_mass_df: a pandas dataframe of calculated critical
+		mass variable values
+
+	Output: 
+		- df: a pandas dataframe 
+	"""
+	# load in indices from record linkage 
+	# link = record_link_schools()
+	# index_array, best_results = link
+
+	# # loop through for information
+	# for pair in index_array:
+	# 	ret_index, cm_index = pair[0], pair[1]
+	# 	cm_school = critical_mass_df.loc[cm_index].school
+	# 	ret_school = retention_df.loc[ret_index].school
+	
+	df = pd.merge(critical_mass_df, retention_df, on='school')	
+	df.set_index(keys='ID', inplace=True)
+	
+	return df
+
 
 def record_link_schools():
 	"""
@@ -21,10 +67,12 @@ def record_link_schools():
 	mass dataframe and the retention rates dataframe. The record linkage
 	is condicted on the name of the school. 
 
-	Input:
+	Input: None
 	Output:
+		- link: a tuple containing the indices of retention dataframe
+                and the critical mass dataframe; AND the best matches qgram scores
 	"""
-	critical_mass_df = obtain_critical_mass_var()
+	critical_mass_df = calculate_critical_mass_var()
 	retention_df = import_cleaned_retention(RETENTION_CLEAN)
 
 	# set thresholds for comparing strings using qgram method
@@ -53,10 +101,6 @@ def record_link_schools():
 
 	# create tuple of indices and best matches df
 	link = (index_array, best_matches)
-
-	# loop through for information
-	for index_pair in index_array:
-		retention_index, cm_index = index_pair[0], index_pair[1]	
 	
 	return link
 
@@ -77,7 +121,7 @@ def import_cleaned_retention(filename):
 	return df
 
 
-def obtain_critical_mass_var():
+def calculate_critical_mass_var():
 	"""
 	This function will calculate the "critical mass" variable for each
 	school. The critical mass variable is the proportion of non-white 
