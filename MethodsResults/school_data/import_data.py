@@ -1,5 +1,5 @@
 # Author: Kevin Sun
-# Date of last edit: Saturday, May 5, 2018
+# Date of last edit: Sunday, May 6, 2018
 
 import pandas as pd 
 import numpy as np 
@@ -15,8 +15,13 @@ RETENTION_CLEAN = "retention_manual_cleaned.xlsx"
 STUDENT_RACE = "demo_stdnt_race_2018.xls"
 STUDENT_SPED_ELL_T1 = "demo_sped_ell_lunch_2018.xls"
 
+
 def build_final_dataset():
 	"""
+	This function builds the final dataset to be used for data analysis
+	and to run the model. It imports the retention variable dataframe, the 
+	critical mass variable dataframe, and the demographic control variables
+	dataframes. It then merges these dataframes into a single dataframe.
 	"""
 	# import the data as relevant dfs
 	retention_df = import_cleaned_retention(RETENTION_CLEAN)
@@ -32,9 +37,11 @@ def build_final_dataset():
 
 	return final_dataset_df
 
-	
+
 def combine_retention_cm(retention_df, critical_mass_df):
 	"""
+	This function merges the retention dataframe and the critical mass
+	dataframe into a single dataframe.
 
 	Input:
 		- retention_df: a pandas dataframe of manually cleaned
@@ -117,7 +124,10 @@ def import_cleaned_retention(filename):
 		- df: a pandas dataframe
 	"""
 	df = pd.read_excel(filename)
-
+	
+	df.drop(['empty_count', 'enroll_avg', 'persis_avg', '15_enp', 
+		'14_enp', '13_enp', '12_enp', '11_enp', '10_enp',], axis=1, inplace=True)
+	
 	return df
 
 
@@ -480,10 +490,6 @@ def import_teachers(filename):
 	# filter out non-teacher & non-instructor positions
 	l = list(df.job_title.unique())
 	teach_list = [s for s in l if "Teacher" in s]
-	# instructor_list = [s for s in l if "Instructor" in s]
-	# counselor_list = [s for s in l if "Counselor" in s]
-	# all_list = teach_list + instructor_list + counselor_list
-	# df = df[df['job_title'].isin(all_list)]
 	df = df[df['job_title'].isin(teach_list)]
 
 	# filter out specific positions
@@ -610,17 +616,24 @@ def import_student_sped_ell(filename):
 		- df: a pandas dataframe
 	"""
 	df = pd.read_excel(filename, skiprows=1, sheetname='Schools', 
-		usecols=[1,2,4,5,6,7,8,9])
+		usecols=[1,5,7,9])
 	df.drop([0,661,662,663], inplace=True)
 	df.set_index('School ID', inplace=True)
-	df.rename(index=int, columns={'School Name': 'school', 'N': 'ell_n', '%': 'ell_p',
-		'N.1': 'sped_n', '%.1': 'sped_p', 'N.2': 'lunch_n', '%.2': 'lunch_p'}, inplace=True)
+	df.rename(index=int, columns={'%': 'ell', '%.1': 'sped', '%.2': 'free_lunch'}, inplace=True)
 	df.index.names = ['ID']
 	
-	# drop the rows where any of the elements are nan
-	df.dropna(axis=0, how='any')
+	# average for demographics for high schools in CPS (manually calculated)
+	ell_avg = 8.475
+	sped_avg = 15.775
+	free_lunch_avg = 82.75
+
+	# fillna with averages from demographics
+	df['ell'].fillna(value=ell_avg, inplace=True)
+	df['sped'].fillna(value=sped_avg, inplace=True)
+	df['free_lunch'].fillna(value=free_lunch_avg, inplace=True)
 
 	return df
+
 
 def import_student_race(filename):
 	"""
@@ -634,16 +647,33 @@ def import_student_race(filename):
 		- df: a pandas dataframe
 	"""
 	df = pd.read_excel(filename, skiprows=1, sheetname='Schools', 
-		usecols=[0,1,5,7,11,13,15,17,19,21])
+		usecols=[0,5,7,11,13,15,17,19,21])
 	df.drop([0], inplace=True)
 	df.set_index('School ID', inplace=True)
-	df.rename(index=int, columns={'School Name': 'school', 'Pct': 'white', 'Pct.1': 'black',
+	df.rename(index=int, columns={'Pct': 'white', 'Pct.1': 'black',
 		'Pct.3': 'nat_am_alsk', 'Pct.4': 'hispanic', 'Pct.5': 'multi', 'Pct.6': 'asian',
 		'Pct.7': 'hi_pi', 'Pct.8': 'unknown'}, inplace=True)
 	df.index.names = ['ID']
 
-	# drop the rows where any of the elements are nan
-	df.dropna(axis=0, how='any')
+	# average for demographics for high schools in CPS
+	white_avg = 8.6
+	black_avg = 38.3
+	nat_am_alsk_avg = 0.3
+	hispanic_avg = 47.2
+	multi_avg = 1.0
+	asian_avg = 4.0
+	hi_pi_avg = 0.1
+	unknown_avg = 0.5
+
+	# fillna with district averages
+	df['white'].fillna(value=white_avg, inplace=True)
+	df['black'].fillna(value=black_avg, inplace=True)
+	df['nat_am_alsk'].fillna(value=nat_am_alsk_avg, inplace=True)
+	df['hispanic'].fillna(value=hispanic_avg, inplace=True)
+	df['multi'].fillna(value=multi_avg, inplace=True)
+	df['asian'].fillna(value=asian_avg, inplace=True)
+	df['hi_pi'].fillna(value=hi_pi_avg, inplace=True)
+	df['unknown'].fillna(value=unknown_avg, inplace=True)
 
 	return df
 
